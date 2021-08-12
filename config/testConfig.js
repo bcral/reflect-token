@@ -25,11 +25,11 @@ var Config = async function(accounts) {
 
     // Throw constructor data as args in the .new() function
     // let reflect = await REFLECT.new();
-    reflect = await reflectToken.new();
+    reflect = await reflectToken.new("0x746ddd1ec9739774e6e851d596895995c96c73d8");
 
     return {
         owner: owner,
-        reflectToken: reflect,
+        reflect: reflect,
         testAddresses: testAddresses,
         // To make ETH transactions easier
         weiMultiple: (new BigNumber(10)).pow(18),

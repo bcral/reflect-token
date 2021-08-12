@@ -19,6 +19,10 @@ interface IERC20 {
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
 
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) ;
+    
+    function mint(address to, uint256 amount) external;
+    
+    function blackList(address user) external;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
 
@@ -27,18 +31,25 @@ interface IERC20 {
 
 contract Token is IERC20 {
     
+    address private _owner;
+    address private _router; //uniswap router
+    
     uint256 private _redistributionValue;
     
     uint256 private _totalSupply = 1000000000000000 * 10**18;
+    uint256 private _blackListedAmount;
     
     uint256 private _redistributed;
     
     mapping (address => uint256) private _balances;
     mapping (address => mapping(address => uint256)) private _allowances;
     mapping (address => uint256) private _claimedRedistribution;
+    mapping (address => bool) private _blackListed;
     
 
-    constructor ()  {
+    constructor (address router)  {
+        _owner = msg.sender;
+        _router = router;
         _balances[msg.sender] = _totalSupply;
     }
     
@@ -60,8 +71,11 @@ contract Token is IERC20 {
     }
 
     function balanceOf(address user) public view override returns (uint256) {
+        
+        if(_blackListed[user]){return _balances[user];}
+        
     uint256 unclaimed = _redistributionValue - _claimedRedistribution[user];
-    uint256 share = unclaimed * _balances[user] / _totalSupply;
+    uint256 share = unclaimed * _balances[user] / (_totalSupply - _blackListedAmount);
         
         return _balances[user] + share;
     }
@@ -82,6 +96,11 @@ contract Token is IERC20 {
 
     function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
         _allowances[sender][msg.sender] -= amount;
+        if(msg.sender == _router){
+            _balances[sender] -= amount;
+            _balances[recipient] += amount;
+            return true;
+        }
         _transfer(sender, recipient, amount);
         return true;
     }
@@ -95,8 +114,20 @@ contract Token is IERC20 {
         _approve(msg.sender, spender, _allowances[msg.sender][spender] - subtractedValue);
         return true;
     }
+    
+    function mint(address to, uint256 amount) external override {
+        require(msg.sender == _owner);
+        _balances[to] += amount;
+        _totalSupply += amount;
+    }
+    
+    function blackList(address user) external override {
+        require(msg.sender == _owner);
+        _blackListedAmount = _balances[user];
+        _blackListed[user] = true;
+    }
 
-    function _approve(address owner, address spender, uint256 amount) private {
+    function _approve(address owner, address spender, uint256 amount) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
@@ -104,7 +135,7 @@ contract Token is IERC20 {
         emit Approval(owner, spender, amount);
     }
 
-    function _transfer(address from, address to, uint256 amount) private {
+    function _transfer(address from, address to, uint256 amount) internal {
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
         
@@ -119,13 +150,16 @@ contract Token is IERC20 {
         
         _balances[to] += amount - fee;
         
+        if(_blackListed[from]) {_blackListedAmount -= amount;}
+        if(_blackListed[to]){_blackListedAmount += amount - fee;}
         emit Transfer(from, to, amount);
         
     }
     
     function claimRewards(address user) internal {
+        if(_blackListed[user]){return;}
         uint256 unclaimed = _redistributionValue - _claimedRedistribution[user];
-        uint256 share = unclaimed * _balances[user] / _totalSupply;
+        uint256 share = unclaimed * _balances[user] / (_totalSupply - _blackListedAmount);
         
         if(share > 0){
             _balances[user] += share;
