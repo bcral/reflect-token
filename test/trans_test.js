@@ -22,7 +22,7 @@ contract('REFLECT.sol', async (accounts) => {
   var walletF;
   var walletG;
   // values for holding larger numbers, to prevent typos
-  var oneT = 100000000000000;
+  var oneT = BigNumber("10e+28");
   var oneM = 1000000;
 
   /****************************************************************************************/
@@ -34,7 +34,7 @@ contract('REFLECT.sol', async (accounts) => {
     // Get total token supply(in contract)
     originalSupply = await config.reflect.totalSupply.call({from: config.owner});
 
-    assert.equal(originalSupply, 1000000000000000, "Fetches the total coin supply");
+    assert.equal(originalSupply, Math.pow(10, 33), "Fetches the total coin supply");
 
   });
 
@@ -110,7 +110,7 @@ contract('REFLECT.sol', async (accounts) => {
   /* Test Reflection AFTER Transfers Between Non-Exempt Wallets                           */
   /****************************************************************************************/
 
-  it(`5. Transfer 1M from wallet to wallet`, async function () {
+  it(`5. Transfer tokens from wallet to wallet`, async function () {
 
     // Array of all wallets EXCLUDING walletG - reserved as a bystander to collect reflection
     var walletArray = [walletB, walletC, walletD, walletE, walletF]
@@ -118,14 +118,14 @@ contract('REFLECT.sol', async (accounts) => {
 
 // values used for test loops: 15, 3, 31
 //                  V - number of loops through the loop 
-    for(i = 0; i < 3; i++) {
+    for(i = 0; i < 15; i++) {
         for(j = 0; j < walletArray.length; j++) {
             let addyRecip = walletArray[j];
             let addySender = senderArray[j];
             // Transfer coins from owner to walletB - E
             // values used for transaction values: 27,400,000, 600,000,000, 5,000,430,000
             //                                         V - Transaction value
-            await config.reflect.transfer(addyRecip, 600000000, {from: addySender});
+            await config.reflect.transfer(addyRecip, new BigNumber("27400000").times(10000000000000000), {from: addySender});
         }
     }
 
